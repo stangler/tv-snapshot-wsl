@@ -9,9 +9,9 @@ AI分析はClaude（claude.aiなど）にプロンプトと画像を貼り付け
 ## 構成
 
 ```text
-tv-snapshot-app/
+tv-snapshot-wsl/
 ├── .devcontainer/
-│   ├── devcontainer.json          # VS Code DevContainer設定（docker-compose不使用）
+│   ├── devcontainer.json          # VS Code DevContainer設定（WSL運用では未使用）
 │   └── Dockerfile                 # Python 3.11-slim-bookworm + Playwright環境
 ├── pyproject.toml                 # Pythonパッケージ（uv管理）
 ├── scripts/
@@ -29,9 +29,63 @@ tv-snapshot-app/
 
 ## セットアップ
 
-Docker Composeは不使用。DevContainer（Dockerfile直参照）またはローカルのuv、どちらでも動作する。
+現行運用は **WSL2（Ubuntu）ネイティブ**（Docker Desktop不要）。DevContainer（Dockerfile直参照）やWindowsネイティブのuvでも動作する。
 
-### 方法A: VS Code DevContainer
+### 方法A: WSL2（Ubuntu）ネイティブ【現行】
+
+配置先: `~/projects/tv-snapshot-wsl`（WSLのext4上。`/mnt/c` 配下は遅いので避ける）
+
+#### 1. システム依存パッケージ（日本語フォント含む）
+
+```bash
+sudo apt-get update && sudo apt-get install -y curl wget git ca-certificates fonts-noto-cjk fonts-dejavu-core
+```
+
+`fonts-noto-cjk` は `batch_snapshot.py` のPillow描画（Noto → DejaVu フォールバック）で日本語を正しく出すために必要。
+
+#### 2. uv（未導入の場合）
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+#### 3. clone と依存関係のインストール
+
+```bash
+cd ~/projects
+git clone https://github.com/stangler/tv-snapshot-wsl.git
+cd tv-snapshot-wsl
+uv sync
+uv run playwright install chromium --with-deps
+```
+
+`uv sync` が `requires-python = "==3.11.*"` に従いPython 3.11を自動取得する。ディレクトリ名を変更した場合は `.venv` が旧パスを参照するため `rm -rf .venv && uv sync` で作り直す。
+
+#### 4. データ置き場と動作確認
+
+`csv/` と `snapshots/` は `.gitignore` 対象でcloneされない。作成して約定照会CSVを手動で置く。
+
+```bash
+mkdir -p csv snapshots
+uv run pytest tests/ -v
+uv run snap --help
+```
+
+#### 5. 実行
+
+```bash
+uv run snap --date 0315
+```
+
+毎回 `uv run` を付けたくない場合は `~/.bashrc` に追記：
+
+```bash
+echo 'source ~/projects/tv-snapshot-wsl/.venv/bin/activate' >> ~/.bashrc
+```
+
+VS Codeは WSL ターミナルで `code .` を実行してWSL接続する（DevContainer不要）。
+
+### 方法B: VS Code DevContainer（Docker Desktop使用）
 
 `.devcontainer/devcontainer.json` は `docker-compose` を使わず `Dockerfile` を直接ビルドする構成。
 
@@ -55,7 +109,7 @@ echo 'source /workspace/.venv/bin/activate' >> ~/.bashrc
 
 以降は `snap --date 0315` のように直接呼び出せる。
 
-### 方法B: ローカル環境（uvのみ、Docker不使用）
+### 方法C: Windowsネイティブ（uvのみ、Docker不使用）
 
 #### 1. uvのインストール（未導入の場合）
 
@@ -303,7 +357,7 @@ uv run pytest tests/test_batch_snapshot.py::TestEstimatePnl -v
 ## トラブルシューティング
 
 **`snap` コマンドが見つからない**
-`uv sync` を実行する。`pyproject.toml` の `[project.scripts]` にエントリポイントが登録されている。`uv run snap ...` の形で呼び出すか、`~/.bashrc` に `source /workspace/.venv/bin/activate` を追記して恒常的に有効化する。
+`uv sync` を実行する。`pyproject.toml` の `[project.scripts]` にエントリポイントが登録されている。`uv run snap ...` の形で呼び出すか、`~/.bashrc` に `source <リポジトリ>/.venv/bin/activate` を追記して恒常的に有効化する（DevContainerは `/workspace/.venv`、WSLは `~/projects/tv-snapshot-wsl/.venv`）。
 
 **Playwrightのブラウザが見つからない**
 ```bash
