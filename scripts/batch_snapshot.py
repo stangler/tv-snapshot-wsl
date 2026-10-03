@@ -467,7 +467,7 @@ def take_snapshot(symbol: str, date_str: str, out_path: Path,
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page(viewport={"width": width, "height": height})
-            page.goto(url, wait_until="networkidle", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
             time.sleep(wait_sec)
 
             # ── 1D ボタンをクリックして1日全体を表示 ──
@@ -500,7 +500,7 @@ def take_nikkei_snapshot(date_str: str, out_path: Path,
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page(viewport={"width": width, "height": height})
-            page.goto(url, wait_until="networkidle", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
             time.sleep(wait_sec)
             try:
                 page.locator("button:has-text('1D')").first.click(timeout=3000)
